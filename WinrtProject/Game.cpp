@@ -12,12 +12,6 @@ XMMATRIX g_ViewMatrix = DirectX::XMMatrixIdentity();
 XMMATRIX g_ProjectionMatrix = DirectX::XMMatrixIdentity();
 std::vector<Vertex> vertices;
 
-
-bool operator ==(Vertex a, Vertex b)
-{
-    return a.x == b.x && a.y == b.y && a.z == b.z;
-}
-
 // this function loads a file into an :vector<byte>
 std::vector<byte>* LoadShaderFile(std::string File)
 {
@@ -133,7 +127,7 @@ void CGame::Update()
     g_ViewMatrix = XMMatrixLookAtLH(eyePosition, focusPoint, upDirection);
     m_d3dContext->UpdateSubresource(g_d3dConstantBuffers[CB_Frame], 0, nullptr, &g_ViewMatrix, 0, 0);
 
-    XMVECTOR rotationAxis = XMVectorSet(0, 1, 1, 0);
+    XMVECTOR rotationAxis = XMVectorSet(0, 1, 0, 0);
 
     g_WorldMatrix = XMMatrixRotationAxis(rotationAxis, XMConvertToRadians(angle));
     m_d3dContext->UpdateSubresource(g_d3dConstantBuffers[CB_Object], 0, nullptr, &g_WorldMatrix, 0, 0);
@@ -152,13 +146,27 @@ void CGame::Render()
     uint32_t stride{ sizeof(Vertex) };
     uint32_t offset{ 0 };
 
-    ID3D11Buffer* vertexBuffer{ vertexbuffer.get() };
-    m_d3dContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
+    ID3D11Buffer* vertexBufferMod{ vertexbufferForModel.get() };
+    m_d3dContext->IASetVertexBuffers(0, 1, &vertexBufferMod, &stride, &offset);
     m_d3dContext->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_d3dContext->VSSetConstantBuffers(0, 3, g_d3dConstantBuffers);
 
     m_d3dContext->Draw(vertices.size(), 0);
+//--------------------------------------------------------------------------------------------------------
+    ID3D11Buffer* vertexBufferPlfirst{ vertexbufferForPlaneFirst.get() };
+    m_d3dContext->IASetVertexBuffers(0, 1, &vertexBufferPlfirst, &stride, &offset);
+    m_d3dContext->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_d3dContext->VSSetConstantBuffers(0, 3, g_d3dConstantBuffers);
 
+    m_d3dContext->Draw(6, 0);
+//------------------------------------------------------------------------------------------------------------
+    ID3D11Buffer* vertexBufferPlsecond{ vertexbufferForPlaneSecond.get() };
+    m_d3dContext->IASetVertexBuffers(0, 1, &vertexBufferPlsecond, &stride, &offset);
+    m_d3dContext->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_d3dContext->VSSetConstantBuffers(0, 3, g_d3dConstantBuffers);
+
+    m_d3dContext->Draw(6, 0);
+//------------------------------------------------------------------------------------------------------------
     // switch the back buffer and the front buffer
     m_swapChain->Present(1, 0);
 }
@@ -168,8 +176,17 @@ void CGame::InitGraphics()
     std::vector<Normal> normals;
     std::vector<Triangle> objectTriangles;
 
-    getGeometryInput("3dmodel.stl", objectTriangles);
-    getVerticesForIntersectionTriangles(objectTriangles, vertices);
+    getGeometryInput("xyzCalibration_cube.stl", objectTriangles);
+    //getVerticesForIntersectionTriangles(objectTriangles, vertices);
+
+    float coordZfirst = -5.0f;
+    float coordZsecond = 50.0f;
+    Plane planeFirst(Vertex(30.0, 30.0, coordZfirst), Vertex(30.0f, -30.0f, coordZfirst), Vertex(-30.0f, 30.0f, coordZfirst));
+    Plane planeSecond(Vertex(30.0, 30.0, coordZsecond), Vertex(30.0f, -30.0f, coordZsecond), Vertex(-30.0f, 30.0f, coordZsecond));
+
+    std::vector <Vertex> verts;
+    sliceSolid(objectTriangles, planeFirst, planeSecond, vertices);
+
 
     D3D11_BUFFER_DESC bd = { 0 };
     //bd.ByteWidth = sizeof(VertexPosColor) * ARRAYSIZE(OurVertices);
@@ -178,8 +195,54 @@ void CGame::InitGraphics()
 
     D3D11_SUBRESOURCE_DATA srd = {/*OurVertices*/ vertices.data(), 0, 0};
 
-    m_d3dDevice->CreateBuffer(&bd, &srd, vertexbuffer.put());
+    m_d3dDevice->CreateBuffer(&bd, &srd, vertexbufferForModel.put());
+//--------------------------------------------------------------------------------------------------
+    Vertex  maskVertfirst[] = {
+        // Первый треугольник
+        {50.0f,  50.0f, coordZfirst },  // Верхний правый угол
+         {50.0f, -50.0f, coordZfirst},  // Нижний правый угол
+        {-50.0f,  50.0f, coordZfirst },  // Верхний левый угол
+        // Второй треугольник
+         {50.0f, -50.0f, coordZfirst},  // Нижний правый угол
+        {-50.0f, -50.0f, coordZfirst },  // Нижний левый угол
+         { -50.0f,  50.0f, coordZfirst}   // Верхний левый угол
+    };
+
+    D3D11_BUFFER_DESC bd2 = { 0 };
+    //bd.ByteWidth = sizeof(VertexPosColor) * ARRAYSIZE(OurVertices);
+    bd2.ByteWidth = sizeof(Vertex) * ARRAYSIZE(maskVertfirst);
+    bd2.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+
+    D3D11_SUBRESOURCE_DATA srd2 = {/*OurVertices*/ maskVertfirst, 0, 0 };
+    m_d3dDevice->CreateBuffer(&bd2, &srd2, vertexbufferForPlaneFirst.put());
+//----------------------------------------------------------------------------------------------------
+
+    Vertex  maskVertSecond[] = {
+        // Первый треугольник
+        {50.0f,  50.0f, coordZsecond },  // Верхний правый угол
+         {50.0f, -50.0f, coordZsecond},  // Нижний правый угол
+        {-50.0f,  50.0f, coordZsecond },  // Верхний левый угол
+        // Второй треугольник
+         {50.0f, -50.0f, coordZsecond},  // Нижний правый угол
+        {-50.0f, -50.0f, coordZsecond },  // Нижний левый угол
+         { -50.0f,  50.0f, coordZsecond}   // Верхний левый угол
+    };
+
+
+    D3D11_BUFFER_DESC bd3 = { 0 };
+    //bd.ByteWidth = sizeof(VertexPosColor) * ARRAYSIZE(OurVertices);
+    bd3.ByteWidth = sizeof(Vertex) * ARRAYSIZE(maskVertSecond);
+    bd3.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+
+    D3D11_SUBRESOURCE_DATA srd3 = {/*OurVertices*/ maskVertSecond, 0, 0 };
+    m_d3dDevice->CreateBuffer(&bd3, &srd3, vertexbufferForPlaneSecond.put());
+
+
 }
+
+    // load the shader files
+    std::vector<byte>*  VSFile = LoadShaderFile("VertexShader.cso");
+    std::vector<byte>*  PSFile = LoadShaderFile("PixelShader.cso");
 
 void CGame::InitPipeline()
 {
@@ -195,11 +258,6 @@ void CGame::InitPipeline()
     m_d3dDevice->CreateBuffer(&constantBufferDesc, nullptr, &g_d3dConstantBuffers[CB_Frame]);
     m_d3dDevice->CreateBuffer(&constantBufferDesc, nullptr, &g_d3dConstantBuffers[CB_Object]);
 
-
-    // load the shader files
-    std::vector<byte>*  VSFile = LoadShaderFile("VertexShader.cso");
-    std::vector<byte>*  PSFile = LoadShaderFile("PixelShader.cso");
-
     // create the shader objects
     m_d3dDevice->CreateVertexShader(VSFile->data(), VSFile->size(), nullptr, vertexshader.put());
     m_d3dDevice->CreatePixelShader(PSFile->data(), PSFile->size(), nullptr, pixelshader.put());
@@ -210,8 +268,8 @@ void CGame::InitPipeline()
     // initialize input layout
     D3D11_INPUT_ELEMENT_DESC ied[] =
     {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(VertexPosColor,Position), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(VertexPosColor,Color), D3D11_INPUT_PER_VERTEX_DATA, 0 }
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }
     };
 
     // create and set the input layout
@@ -229,7 +287,30 @@ void CGame::InitPipeline()
     g_ProjectionMatrix = XMMatrixPerspectiveFovLH(XMConvertToRadians(45.0f), clientWidth / clientHeight, 0.1f, 1000.0f);
     m_d3dContext->UpdateSubresource(g_d3dConstantBuffers[CB_Appliation], 0, nullptr, &g_ProjectionMatrix, 0, 0);
 
-    m_d3dContext->IASetInputLayout(inputlayout.get());
 
+    D3D11_RASTERIZER_DESC rdc;
+    ZeroMemory(&rdc, sizeof(rdc));
+
+    rdc.FillMode = D3D11_FILL_WIREFRAME;
+    rdc.CullMode = D3D11_CULL_NONE;
+    rdc.FrontCounterClockwise = FALSE;
+    rdc.SlopeScaledDepthBias = 0.0f;
+    rdc.DepthBiasClamp = 0.0f;
+    rdc.DepthClipEnable = TRUE;
+    rdc.ScissorEnable = FALSE;
+    rdc.MultisampleEnable = FALSE;
+    rdc.AntialiasedLineEnable = FALSE;
+
+    check_hresult(
+        m_d3dDevice->CreateRasterizerState(&rdc, m_d3dRasterizer.put())
+    );
+
+    m_d3dContext->RSSetState(m_d3dRasterizer.get());
+    m_d3dContext->IASetInputLayout(inputlayout.get());
 }
 
+void CGame::Uninitialize()
+{
+    delete VSFile;
+    delete PSFile;
+}

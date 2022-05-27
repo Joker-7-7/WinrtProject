@@ -39,15 +39,12 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
 
     void Uninitialize()
     {
+        Game.Uninitialize();
     }
 
     void Run()
     {
         Game.Initialize();
-
-        //static DWORD previousTime = time(NULL);
-        //static const float targetFramerate = 30.0f;
-        //static const float maxTimeStep = 1.0f / targetFramerate;
 
         CoreWindow window = CoreWindow::GetForCurrentThread();
 
@@ -55,14 +52,6 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
         while (!WindowClosed)
         {
             dispatcher.ProcessEvents(CoreProcessEventsOption::ProcessAllIfPresent);
-
-            //DWORD currentTime = time(NULL);
-            //float deltaTime = (currentTime - previousTime) / 1000.0f;
-            //previousTime = currentTime;
-
-            // Cap the delta time to the max time step (useful if your 
-            // debugging and you don't want the deltaTime value to explode.
-            //deltaTime = std::min<float>(deltaTime, maxTimeStep);
 
             Game.Update();
             Game.Render();
@@ -112,14 +101,16 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
         {
             Game.angle -= 90.0f * Game.deltaTime;
         }
-        if (args.VirtualKey() == VirtualKey::W)
+        if (args.VirtualKey() == VirtualKey::Up)
         {
             Game.heightZ += Game.deltaZ;
         }
-        if (args.VirtualKey() == VirtualKey::S)
+        if (args.VirtualKey() == VirtualKey::Down)
         {
             Game.heightZ -= Game.deltaZ;
         }
+
+
     }
     void OnPressedKeyUp(CoreWindow const&, KeyEventArgs const& args)
     {

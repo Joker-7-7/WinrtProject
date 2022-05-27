@@ -17,6 +17,11 @@ struct Vertex
     float x, y, z;
 };
 
+bool operator ==(Vertex a, Vertex b)
+{
+    return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
 struct Normal
 {
     Normal() {}
@@ -92,7 +97,204 @@ void getVerticesForIntersectionTriangles(std::vector<Triangle>& Triangles, std::
             Triangles[i].vert_3.z));
     }
 }
+float dotProduct(XMVECTOR a, XMVECTOR b)
+{
+    return XMVectorGetX(a) * XMVectorGetX(b) + XMVectorGetY(a) * XMVectorGetY(b) + XMVectorGetZ(a) * XMVectorGetZ(b);
+}
+void differentiationTriangles(std::vector<Triangle>& intersectionTriangles, std::vector<Triangle>& newTriangles, Plane& plane, int revert = 1)
+{
 
+    XMVECTOR planeNormal = -plane.getNormal();
+    planeNormal *= revert;
+    Vertex pointOnPlane = plane.vert_1;
+    std::vector <Vertex> intersectionPoints;
+    for (size_t i = 0; i < intersectionTriangles.size(); ++i)
+    {
+        XMVECTOR dP1 = XMVectorSet(pointOnPlane.x - intersectionTriangles[i].vert_1.x,
+            pointOnPlane.y - intersectionTriangles[i].vert_1.y,
+            pointOnPlane.z - intersectionTriangles[i].vert_1.z, 1.0f);
+        XMVECTOR dP2 = XMVectorSet(pointOnPlane.x - intersectionTriangles[i].vert_2.x,
+            pointOnPlane.y - intersectionTriangles[i].vert_2.y,
+            pointOnPlane.z - intersectionTriangles[i].vert_2.z, 1.0f);
+        XMVECTOR dP3 = XMVectorSet(pointOnPlane.x - intersectionTriangles[i].vert_3.x,
+            pointOnPlane.y - intersectionTriangles[i].vert_3.y,
+            pointOnPlane.z - intersectionTriangles[i].vert_3.z, 1.0f);
+
+        XMVECTOR p1 = XMVectorSet(intersectionTriangles[i].vert_2.x - intersectionTriangles[i].vert_1.x,
+            intersectionTriangles[i].vert_2.y - intersectionTriangles[i].vert_1.y,
+            intersectionTriangles[i].vert_2.z - intersectionTriangles[i].vert_1.z, 1.0f);
+        XMVECTOR p2 = XMVectorSet(intersectionTriangles[i].vert_3.x - intersectionTriangles[i].vert_2.x,
+            intersectionTriangles[i].vert_3.y - intersectionTriangles[i].vert_2.y,
+            intersectionTriangles[i].vert_3.z - intersectionTriangles[i].vert_2.z, 1.0f);
+        XMVECTOR p3 = XMVectorSet(intersectionTriangles[i].vert_3.x - intersectionTriangles[i].vert_1.x,
+            intersectionTriangles[i].vert_3.y - intersectionTriangles[i].vert_1.y,
+            intersectionTriangles[i].vert_3.z - intersectionTriangles[i].vert_1.z,1.0f);
+
+        float t1 = ((dotProduct(planeNormal, dP1)) / (dotProduct(planeNormal, p1)));
+        float t2 = (dotProduct(planeNormal, dP2)) / (dotProduct(planeNormal, p2));
+        float t3 = (dotProduct(planeNormal, dP3)) / (dotProduct(planeNormal, p3));
+
+        std::vector<Vertex> o;
+        o.push_back(Vertex(t1 * XMVectorGetX(p1) + intersectionTriangles[i].vert_1.x,
+            t1 * XMVectorGetY(p1) + intersectionTriangles[i].vert_1.y,
+            t1 * XMVectorGetZ(p1) + intersectionTriangles[i].vert_1.z));
+        o.push_back(Vertex(t2 * XMVectorGetX(p2) + intersectionTriangles[i].vert_2.x,
+            t2 * XMVectorGetY(p2) + intersectionTriangles[i].vert_2.y,
+            t2 * XMVectorGetZ(p2) + intersectionTriangles[i].vert_2.z));
+        o.push_back(Vertex(t3 * XMVectorGetX(p3) + intersectionTriangles[i].vert_3.x,
+            t3 * XMVectorGetY(p3) + intersectionTriangles[i].vert_3.y,
+            t3 * XMVectorGetZ(p3) + intersectionTriangles[i].vert_3.z));
+
+
+
+        std::vector <Vertex> deletePoints;
+        if (dotProduct(planeNormal, dP1) > 0)
+            deletePoints.push_back(intersectionTriangles[i].vert_1);
+        if (dotProduct(planeNormal, dP2) > 0)
+            deletePoints.push_back(intersectionTriangles[i].vert_2);
+        if (dotProduct(planeNormal, dP3) > 0)
+            deletePoints.push_back(intersectionTriangles[i].vert_3);
+
+        if (deletePoints.size() == 1)
+        {
+            if (deletePoints[0] == intersectionTriangles[i].vert_1)
+            {
+                newTriangles.push_back(Triangle(o[2], intersectionTriangles[i].vert_3, o[0], Normal(0.0, 0.0, 0.0)));
+                newTriangles.push_back(Triangle(intersectionTriangles[i].vert_3, intersectionTriangles[i].vert_2, o[0], Normal(0.0, 0.0, 0.0)));
+                intersectionPoints.push_back(o[0]);
+                intersectionPoints.push_back(o[2]);
+            }
+            else if (deletePoints[0] == intersectionTriangles[i].vert_2)
+            {
+                newTriangles.push_back(Triangle(o[1], intersectionTriangles[i].vert_3, o[0], Normal(0.0, 0.0, 0.0)));
+                newTriangles.push_back(Triangle(intersectionTriangles[i].vert_3, intersectionTriangles[i].vert_1, o[0], Normal(0.0, 0.0, 0.0)));
+                intersectionPoints.push_back(o[0]);
+                intersectionPoints.push_back(o[1]);
+            }
+            else if (deletePoints[0] == intersectionTriangles[i].vert_3)
+            {
+                newTriangles.push_back(Triangle(o[2], intersectionTriangles[i].vert_1, o[1], Normal(0.0, 0.0, 0.0)));
+                newTriangles.push_back(Triangle(intersectionTriangles[i].vert_1, intersectionTriangles[i].vert_2, o[1], Normal(0.0, 0.0, 0.0)));
+                intersectionPoints.push_back(o[1]);
+                intersectionPoints.push_back(o[2]);
+            }
+        }
+        else if (deletePoints.size() == 2)
+        {
+            if (deletePoints[0] == intersectionTriangles[i].vert_2 && deletePoints[1] == intersectionTriangles[i].vert_3)
+            {
+                newTriangles.push_back(Triangle(o[2], intersectionTriangles[i].vert_1, o[0], Normal(0.0, 0.0, 0.0)));
+                intersectionPoints.push_back(o[0]);
+                intersectionPoints.push_back(o[2]);
+            }
+            else if (deletePoints[0] == intersectionTriangles[i].vert_1 && deletePoints[1] == intersectionTriangles[i].vert_3)
+            {
+                newTriangles.push_back(Triangle(o[1], intersectionTriangles[i].vert_2, o[0], Normal(0.0, 0.0, 0.0)));
+                intersectionPoints.push_back(o[0]);
+                intersectionPoints.push_back(o[1]);
+            }
+            else if (deletePoints[0] == intersectionTriangles[i].vert_1 && deletePoints[1] == intersectionTriangles[i].vert_2)
+            {
+                newTriangles.push_back(Triangle(o[1], intersectionTriangles[i].vert_3, o[2], Normal(0.0, 0.0, 0.0)));
+                intersectionPoints.push_back(o[1]);
+                intersectionPoints.push_back(o[2]);
+            }
+        }
+
+        //newTriangles.push_back(o[0]);
+        //newTriangles.push_back(o[1]);
+        //newTriangles.push_back(o[2]);
+    }
+
+
+}
+
+void findIntersectionTriangles(std::vector<Triangle>& objectTriangles, std::vector<Triangle>& intersectionTriangles, Plane& plane)
+{
+    XMVECTOR planeNormal = plane.getNormal();
+    Vertex pointOnPlane = plane.vert_1;
+
+    for (size_t i = 0; i < objectTriangles.size(); ++i)
+    {
+        XMVECTOR tmpVec1 = XMVectorSet(objectTriangles[i].vert_1.x - pointOnPlane.x, objectTriangles[i].vert_1.y - pointOnPlane.y, objectTriangles[i].vert_1.z - pointOnPlane.z, 1.0f);
+        XMVECTOR tmpVec2 = XMVectorSet(objectTriangles[i].vert_2.x - pointOnPlane.x, objectTriangles[i].vert_2.y - pointOnPlane.y, objectTriangles[i].vert_2.z - pointOnPlane.z, 1.0f);
+        XMVECTOR tmpVec3 = XMVectorSet(objectTriangles[i].vert_3.x - pointOnPlane.x, objectTriangles[i].vert_3.y - pointOnPlane.y, objectTriangles[i].vert_3.z - pointOnPlane.z, 1.0f);
+
+        if (!((dotProduct(tmpVec1, planeNormal) > 0 && dotProduct(tmpVec2, planeNormal) > 0 && dotProduct(tmpVec3, planeNormal) > 0)
+            || (dotProduct(tmpVec1, planeNormal) < 0 && dotProduct(tmpVec2, planeNormal) < 0 && dotProduct(tmpVec3, planeNormal) < 0)))
+            intersectionTriangles.push_back(objectTriangles[i]);
+
+    }
+}
+
+void mergeTriangles(std::vector<Triangle>& firstArrayTriangles, std::vector<Triangle>& secondArrayTriangles)
+{
+    for (size_t i = 0; i < firstArrayTriangles.size(); ++i)
+    {
+        secondArrayTriangles.push_back(firstArrayTriangles[i]);
+    }
+}
+
+
+void findTrianglesOneSide(std::vector<Triangle>& objectTriangles, std::vector<Triangle>& sideTriangles, Plane& planeFirst, Plane& planeSecond, int revert = 1)
+{
+    XMVECTOR planeNormalFirst = planeFirst.getNormal() * revert;
+    Vertex pointOnPlaneFirst = planeFirst.vert_1;
+
+    //XMVECTOR planeNormalSecond = -planeSecond.getNormal();
+    //Vertex pointOnPlaneSecond = planeSecond.vert_1;
+
+    for (size_t i = 0; i < objectTriangles.size(); ++i)
+    {
+        XMVECTOR tmpVec11 = XMVectorSet(objectTriangles[i].vert_1.x - pointOnPlaneFirst.x, objectTriangles[i].vert_1.y - pointOnPlaneFirst.y, objectTriangles[i].vert_1.z - pointOnPlaneFirst.z, 1.0f);
+        XMVECTOR tmpVec21= XMVectorSet(objectTriangles[i].vert_2.x - pointOnPlaneFirst.x, objectTriangles[i].vert_2.y - pointOnPlaneFirst.y, objectTriangles[i].vert_2.z - pointOnPlaneFirst.z, 1.0f);
+        XMVECTOR tmpVec31 = XMVectorSet(objectTriangles[i].vert_3.x - pointOnPlaneFirst.x, objectTriangles[i].vert_3.y - pointOnPlaneFirst.y, objectTriangles[i].vert_3.z - pointOnPlaneFirst.z, 1.0f);
+
+        //XMVECTOR tmpVec12 = XMVectorSet(objectTriangles[i].vert_1.x - pointOnPlaneSecond.x, objectTriangles[i].vert_1.y - pointOnPlaneSecond.y, objectTriangles[i].vert_1.z - pointOnPlaneSecond.z, 1.0f);
+        //XMVECTOR tmpVec22 = XMVectorSet(objectTriangles[i].vert_2.x - pointOnPlaneSecond.x, objectTriangles[i].vert_2.y - pointOnPlaneSecond.y, objectTriangles[i].vert_2.z - pointOnPlaneSecond.z, 1.0f);
+        //XMVECTOR tmpVec32 = XMVectorSet(objectTriangles[i].vert_3.x - pointOnPlaneSecond.x, objectTriangles[i].vert_3.y - pointOnPlaneSecond.y, objectTriangles[i].vert_3.z - pointOnPlaneSecond.z, 1.0f);
+
+        if ((dotProduct(tmpVec11, planeNormalFirst) > 0
+            && dotProduct(tmpVec21, planeNormalFirst) > 0
+            && dotProduct(tmpVec31, planeNormalFirst) > 0)
+            
+/*            &&(dotProduct(tmpVec12, planeNormalSecond) > 0
+                && dotProduct(tmpVec22, planeNormalSecond) > 0
+                && dotProduct(tmpVec32, planeNormalSecond) > 0)*/)
+            sideTriangles.push_back(objectTriangles[i]);
+
+    }
+
+
+}
+
+
+void sliceSolid(std::vector<Triangle>& objectTriangles, Plane& planeFirst, Plane& planeSecond, std::vector <Vertex>& verts)
+{
+    std::vector<Triangle> intersectionTrianglesWithFirstPlane;
+    findIntersectionTriangles(objectTriangles, intersectionTrianglesWithFirstPlane, planeFirst);
+
+    std::vector<Triangle> dontIntersectonTrianglesFirstPlane;
+    findTrianglesOneSide(objectTriangles, dontIntersectonTrianglesFirstPlane, planeFirst, planeFirst);
+
+    std::vector<Triangle> firstSliceTriangles;
+    differentiationTriangles(intersectionTrianglesWithFirstPlane, firstSliceTriangles, planeFirst, -1);
+    mergeTriangles(dontIntersectonTrianglesFirstPlane, firstSliceTriangles);
+
+    std::vector<Triangle> intersectionTrianglesWithSecondPlane;
+    findIntersectionTriangles(firstSliceTriangles, intersectionTrianglesWithSecondPlane, planeSecond);
+
+    std::vector<Triangle> dontIntersectonTrianglesSecondPlane;
+    findTrianglesOneSide(firstSliceTriangles, dontIntersectonTrianglesSecondPlane, planeSecond, planeSecond,-1);
+
+    std::vector<Triangle> secondSliceTriangles;
+    differentiationTriangles(intersectionTrianglesWithSecondPlane, secondSliceTriangles, planeSecond);
+    mergeTriangles(dontIntersectonTrianglesSecondPlane, secondSliceTriangles);
+
+    //mergeTriangles(firstSliceTriangles, secondSliceTriangles);
+    
+    getVerticesForIntersectionTriangles(secondSliceTriangles, verts);
+}
 
 int read_binary_STL_file(std::string STL_filename, std::vector<Triangle>& facet)
 {
