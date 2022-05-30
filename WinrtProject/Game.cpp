@@ -176,15 +176,14 @@ void CGame::InitGraphics()
     std::vector<Normal> normals;
     std::vector<Triangle> objectTriangles;
 
-    getGeometryInput("xyzCalibration_cube.stl", objectTriangles);
+    getGeometryInput("3dmodel.stl", objectTriangles);
     //getVerticesForIntersectionTriangles(objectTriangles, vertices);
 
-    float coordZfirst = -5.0f;
+    float coordZfirst = 40.0f;
     float coordZsecond = 50.0f;
     Plane planeFirst(Vertex(30.0, 30.0, coordZfirst), Vertex(30.0f, -30.0f, coordZfirst), Vertex(-30.0f, 30.0f, coordZfirst));
     Plane planeSecond(Vertex(30.0, 30.0, coordZsecond), Vertex(30.0f, -30.0f, coordZsecond), Vertex(-30.0f, 30.0f, coordZsecond));
 
-    std::vector <Vertex> verts;
     sliceSolid(objectTriangles, planeFirst, planeSecond, vertices);
 
 
