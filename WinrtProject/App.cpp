@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "Game.h"
-
+// test comment
 using namespace winrt;
 using namespace Windows;
 using namespace Windows::ApplicationModel::Core;
@@ -27,9 +27,9 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
     {
         applicationView.Activated({ this, &App::OnActivated });
         WindowClosed = false;    // initialize to false
-        //приостановка приложения
+        //пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         //CoreApplication::Suspending({ this, &App::OnSuspending });
-        //загрузка приложения
+        //пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         //CoreApplication::Resuming({ this, &App::OnResuming });
     }
 
